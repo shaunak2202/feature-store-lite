@@ -3,7 +3,7 @@ import sys, os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from feature_store_lite.pit_join import point_in_time_join
+from feature_store_lite.pit_join import point_in_time_join, naive_join
 
 
 def make_log():
@@ -57,3 +57,24 @@ def test_multiple_entities_independent():
     result = point_in_time_join(spine, make_log())
     assert result[result["entity_id"] == "u1"].iloc[0]["count"] == 2
     assert result[result["entity_id"] == "u2"].iloc[0]["count"] == 5
+
+
+def test_naive_join_leaks_future_value_that_pit_join_avoids():
+    """The naive join grabs the latest value overall (3), while the PIT join
+    correctly returns the value known at that timestamp (1). This is the core
+    skew bug the point-in-time join exists to prevent."""
+    spine = pd.DataFrame([{"entity_id": "u1", "label_timestamp": "2024-01-02"}])
+    naive_result = naive_join(spine, make_log())
+    pit_result = point_in_time_join(spine, make_log())
+    assert naive_result.iloc[0]["count"] == 3
+    assert pit_result.iloc[0]["count"] == 1
+    assert naive_result.iloc[0]["count"] != pit_result.iloc[0]["count"]
+
+
+def test_naive_join_matches_pit_when_spine_timestamp_is_after_all_events():
+    """When the label timestamp is after every known event, both joins agree --
+    the skew only shows up when there ARE later events to leak."""
+    spine = pd.DataFrame([{"entity_id": "u1", "label_timestamp": "2024-02-01"}])
+    naive_result = naive_join(spine, make_log())
+    pit_result = point_in_time_join(spine, make_log())
+    assert naive_result.iloc[0]["count"] == pit_result.iloc[0]["count"] == 3

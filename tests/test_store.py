@@ -65,3 +65,20 @@ def test_unregistered_view_raises_on_missing_columns(tmp_store):
     raw = pd.DataFrame([{"entity_id": "u1"}])
     with pytest.raises(ValueError):
         tmp_store.materialize(view, raw)
+
+
+def test_known_entity_ids_returns_materialized_entities(tmp_store):
+    view = FeatureView(name="score", entity_column="entity_id", compute_fn=simple_compute)
+    raw = pd.DataFrame(
+        [
+            {"entity_id": "u1", "event_timestamp": "2024-01-01", "value": 10},
+            {"entity_id": "u2", "event_timestamp": "2024-01-01", "value": 5},
+        ]
+    )
+    tmp_store.materialize(view, raw)
+    ids = tmp_store.known_entity_ids()
+    assert set(ids) == {"u1", "u2"}
+
+
+def test_known_entity_ids_empty_when_nothing_materialized(tmp_store):
+    assert tmp_store.known_entity_ids() == []
