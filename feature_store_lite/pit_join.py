@@ -59,3 +59,31 @@ def point_in_time_join(
         result[feature_name] = values
 
     return result
+
+
+def naive_join(
+    entity_spine: pd.DataFrame,
+    feature_log: pd.DataFrame,
+    entity_col: str = "entity_id",
+) -> pd.DataFrame:
+    """The join a lot of first-draft training pipelines actually write: for each
+    entity, grab the LATEST feature value overall, ignoring the spine's timestamp
+    entirely. This is exactly what `point_in_time_join` exists to avoid -- it's
+    included here (not hidden in a script) so the two can be tested and compared
+    side by side on the same inputs.
+    """
+    spine = entity_spine.copy()
+    log = feature_log.copy()
+    log["event_timestamp"] = pd.to_datetime(log["event_timestamp"])
+
+    latest = (
+        log.sort_values("event_timestamp")
+        .groupby([entity_col, "feature_name"], as_index=False)
+        .last()
+    )
+
+    result = spine.copy()
+    for feature_name in sorted(log["feature_name"].unique()):
+        feat = latest[latest["feature_name"] == feature_name].set_index(entity_col)["value"]
+        result[feature_name] = result[entity_col].map(feat)
+    return result

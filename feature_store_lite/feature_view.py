@@ -11,7 +11,7 @@ both to materialize historical values for training and to compute a fresh value 
 online serving.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable, Dict
 import pandas as pd
 
@@ -61,3 +61,6 @@ class FeatureViewRegistry:
 
     def all(self):
         return list(self._views.values())
+
+    def names(self):
+        return list(self._views.keys())

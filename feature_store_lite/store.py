@@ -10,7 +10,6 @@ lookups at inference time.
 """
 
 import sqlite3
-from pathlib import Path
 from typing import Optional
 import pandas as pd
 
@@ -122,3 +121,11 @@ class FeatureStore:
             row.feature_name: {"value": row.value, "as_of": row.event_timestamp}
             for row in df.itertuples()
         }
+
+    def known_entity_ids(self) -> list:
+        """All entity ids that have at least one online feature value. Used by the
+        serving layer to give a clean 404 instead of a silent empty response for
+        entities that were never materialized."""
+        with self._connect() as conn:
+            df = pd.read_sql(f"SELECT DISTINCT entity_id FROM {ONLINE_TABLE}", conn)
+        return df["entity_id"].tolist() if not df.empty else []
