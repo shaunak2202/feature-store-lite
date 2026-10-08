@@ -7,6 +7,8 @@ from to build training sets.
 Online store: a latest-value table, one row per (entity_id, feature_name), updated
 on every materialization. This is what a serving layer reads from for low-latency
 lookups at inference time.
+
+See parquet_store.py for an alternate offline-store backend for larger datasets.
 """
 
 import sqlite3
