@@ -5,6 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from feature_store_lite.cli import main
 from feature_store_lite.store import FeatureStore
+from feature_store_lite.parquet_store import ParquetOfflineStore
 
 
 def test_list_views_runs_without_error(capsys):
@@ -48,3 +49,47 @@ def test_materialize_without_view_or_all_errors(tmp_path, capsys):
     db_path = str(tmp_path / "cli_test_noargs.db")
     exit_code = main(["materialize", "--db-path", db_path])
     assert exit_code == 2
+
+
+def test_materialize_with_both_view_and_all_errors(tmp_path, capsys):
+    db_path = str(tmp_path / "cli_test_both.db")
+    exit_code = main(
+        ["materialize", "--view", "rolling_login_count", "--all", "--db-path", db_path]
+    )
+    assert exit_code == 2
+    err = capsys.readouterr().err
+    assert "not both" in err
+
+
+def test_materialize_empty_view_name_errors(tmp_path, capsys):
+    db_path = str(tmp_path / "cli_test_empty.db")
+    exit_code = main(["materialize", "--view", "   ", "--db-path", db_path])
+    assert exit_code == 2
+
+
+def test_materialize_unknown_backend_errors(tmp_path, capsys):
+    db_path = str(tmp_path / "cli_test_backend.db")
+    exit_code = main(
+        ["materialize", "--view", "rolling_login_count", "--backend", "bogus", "--db-path", db_path]
+    )
+    assert exit_code == 2
+
+
+def test_materialize_with_parquet_backend_writes_files(tmp_path):
+    parquet_path = str(tmp_path / "pq_store")
+    exit_code = main(
+        [
+            "materialize",
+            "--view",
+            "rolling_login_count",
+            "--backend",
+            "parquet",
+            "--parquet-path",
+            parquet_path,
+        ]
+    )
+    assert exit_code == 0
+
+    store = ParquetOfflineStore(base_path=parquet_path)
+    log = store.read(feature_name="rolling_login_count")
+    assert len(log) == 5
